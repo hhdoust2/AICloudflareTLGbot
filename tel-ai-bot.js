@@ -102,6 +102,79 @@ async function getUserModelKey(env, chatId) {
 }
 __name(getUserModelKey, "getUserModelKey");
 
+// 📊 دریافت مجموع نورون مصرف‌شده امروز (به وقت UTC) از GraphQL Analytics کلادفلر
+// دیتاست: aiInferenceAdaptiveGroups — فیلد جمع‌شده: sum.totalNeurons
+// (این اسم فیلد از خروجی واقعی introspection روی همین حساب تأیید شده، نه حدس)
+async function getNeuronUsage(env) {
+  if (!env.CF_ACCOUNT_ID || !env.CF_API_TOKEN) return null;
+
+  const todayUtc = new Date().toISOString().slice(0, 10); // YYYY-MM-DD به وقت UTC
+
+  const query = `
+    query GetTodayNeurons($accountTag: string!, $today: Date!) {
+      viewer {
+        accounts(filter: { accountTag: $accountTag }) {
+          aiInferenceAdaptiveGroups(filter: { date: $today }, limit: 1000) {
+            sum { totalNeurons }
+          }
+        }
+      }
+    }
+  `;
+
+  try {
+    const res = await fetch("https://api.cloudflare.com/client/v4/graphql", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${env.CF_API_TOKEN}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        query,
+        variables: { accountTag: env.CF_ACCOUNT_ID, today: todayUtc }
+      })
+    });
+    const data = await res.json();
+    if (!res.ok || data?.errors) {
+      return { ok: false, raw: data };
+    }
+    const groups = data?.data?.viewer?.accounts?.[0]?.aiInferenceAdaptiveGroups || [];
+    const consumed = groups.reduce((sum, g) => sum + (g?.sum?.totalNeurons || 0), 0);
+    return { ok: true, consumed, date: todayUtc };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+}
+__name(getNeuronUsage, "getNeuronUsage");
+
+// ساخت متن قابل‌نمایش وضعیت نورون برای پیام /start
+// نکته: سقف ۱۰هزارتایی، مقداریه که خود کلادفلر برای پلن Free اعمال می‌کنه؛ از هیچ API قابل استعلام نیست،
+// برای همین به‌عنوان یه عدد ثابت شناخته‌شده نگه‌داشته شده، نه چیزی که از این کوئری اومده باشه.
+function formatNeuronUsage(usage) {
+  if (!usage) {
+    return "⚠️ برای نمایش اعتبار نورون، متغیرهای <code>CF_ACCOUNT_ID</code> و <code>CF_API_TOKEN</code> رو در تنظیمات ورکر ست کن.";
+  }
+  if (!usage.ok) {
+    const errText = usage.error || JSON.stringify(usage.raw).slice(0, 400);
+    return `⚠️ گرفتن وضعیت نورون ناموفق بود:\n<pre><code>${escapeHtml(errText)}</code></pre>`;
+  }
+
+  const FREE_DAILY_LIMIT = 10000;
+  const consumed = usage.consumed;
+  const remaining = Math.max(FREE_DAILY_LIMIT - consumed, 0);
+
+  return [
+    "📊 <b>وضعیت مصرف Neuron کلادفلر (امروز، به وقت UTC)</b>",
+    `🔸 مصرف‌شده: <b>${consumed.toFixed(0)}</b>`,
+    `🔸 سقف رایگان روزانه: <b>${FREE_DAILY_LIMIT}</b>`,
+    `🔸 باقیمانده (اگه پلن Free داری): <b>${remaining.toFixed(0)}</b>`,
+    "🔸 ریست: هر روز ساعت ۰۰:۰۰ به وقت UTC",
+    "",
+    "ℹ️ اگه پلن Workers Paid داری، بعد از این سقف هم مصرفت ادامه پیدا می‌کنه ولی جداگانه هزینه‌اش حساب می‌شه."
+  ].join("\n");
+}
+__name(formatNeuronUsage, "formatNeuronUsage");
+
 // تبدیل ArrayBuffer به Base64 به‌صورت تکه‌تکه (برای جلوگیری از خطای call stack روی فایل‌های بزرگ)
 function arrayBufferToBase64(buffer) {
   const bytes = new Uint8Array(buffer);
@@ -317,9 +390,11 @@ export default {
       // 🧭 دستور شروع
       if (text === "/start") {
         const currentKey = await getUserModelKey(env, chatId);
+        const neuronUsage = await getNeuronUsage(env);
+        const neuronText = formatNeuronUsage(neuronUsage);
         await sendTelegram(env.BOT_TOKEN, "sendMessage", {
           chat_id: chatId,
-          text: `سلام! من دستیار هوشمند شما هستم 🤖\nمدل فعلی: <b>${escapeHtml(MODELS[currentKey].label)}</b>\n\nهر سوالی داری بپرس. برای تغییر مدل هوش مصنوعی، دستور /model رو بفرست.`,
+          text: `سلام! من دستیار هوشمند شما هستم 🤖\n\n${neuronText}\n\nمدل فعلی: <b>${escapeHtml(MODELS[currentKey].label)}</b>\n\nهر سوالی داری بپرس. برای تغییر مدل هوش مصنوعی، دستور /model رو بفرست.`,
           parse_mode: "HTML"
         });
         return new Response("OK", { status: 200 });
