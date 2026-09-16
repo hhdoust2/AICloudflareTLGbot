@@ -5,13 +5,12 @@
 ## دیپلوی با یک کلیک
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/hhdoust2/AICloudflareTLGbot)
->
->
+
 ## مراحل کامل راه‌اندازی
 
-1.ساخت اکانت در cloudflare.com
-2.اتصال اچانت کلادفلر به گیتهاب
-3.ساخت ربات تلگرامی و کپی کردن api token
+1.ساخت اکانت در cloudflare.com 
+2.اتصال اکانت کلادفلر به گیتهاب 
+3.ساخت ربات تلگرامی و کپی کردن api token 
 4. حالا روی دکمهٔ «Deploy to Cloudflare» بالا (یا داخل ریپوی گیت‌هابت) کلیک کن.
 5. وارد اکانت Cloudflare‌ت شو، مقدار `BOT_TOKEN` رو وارد کن، و روی Deploy بزن.
 6. بعد از اتمام دیپلوی، آدرس Worker رو (چیزی شبیه `https://tel-ai-bot.<account>.workers.dev`) به‌عنوان Webhook تلگرام ثبت کن:
