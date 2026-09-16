@@ -5,7 +5,6 @@ var __name = (target, value) => __defProp(target, "name", { value, configurable:
 // 📋 لیست مدل‌های قابل انتخاب — دقیقاً همان مدل‌هایی که در تستر مرورگر شما تأیید شده کار می‌کنند
 const MODELS = {
   llama33:  { label: "🦙 Llama 3.3 70B",            id: "@cf/meta/llama-3.3-70b-instruct-fp8-fast", type: "chat" },
-  llama31:  { label: "🦙 Llama 3.1 70B",            id: "@cf/meta/llama-3.1-70b-instruct-fp8-fast", type: "chat" },
   qwen:     { label: "🐉 Qwen3.8 27B",               id: "@cf/qwen/qwen3.8-27b", type: "chat" },
   glm:      { label: "✨ GLM-4.7 Flash",             id: "@cf/zai-org/glm-4.7-flash", type: "chat" },
   seaLion:  { label: "🌊 Gemma SEA-LION v4 27B",     id: "@cf/aisingapore/gemma-sea-lion-v4-27b-it", type: "chat" },
