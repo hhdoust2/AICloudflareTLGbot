@@ -6,7 +6,8 @@
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/hhdoust2/AICloudflareTLGbot)
 >
-> ## مراحل کامل راه‌اندازی
+>
+## مراحل کامل راه‌اندازی
 
 1.ساخت اکانت در cloudflare.com
 2.اتصال اچانت کلادفلر به گیتهاب
