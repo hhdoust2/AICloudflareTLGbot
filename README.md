@@ -13,10 +13,12 @@
    2.اتصال اکانت کلادفلر به گیتهاب 
 
    3.ساخت ربات تلگرامی و کپی کردن api token 
-
-   4. حالا روی دکمهٔ «Deploy to Cloudflare» بالا (یا داخل ریپوی گیت‌هابت) کلیک کن.
-   5.  وارد اکانت Cloudflare‌ت شو، مقدار `BOT_TOKEN` رو وارد کن، و روی Deploy بزن.
-   6. بعد از اتمام دیپلوی، آدرس Worker رو (چیزی شبیه `https://tel-ai-bot.<account>.workers.dev`) به‌عنوان Webhook تلگرام ثبت کن:
+  
+   4.حالا روی دکمهٔ «Deploy to Cloudflare» بالا (یا داخل ریپوی گیت‌هابت) کلیک کن.
+   
+   5.وارد اکانت Cloudflare‌ت شو، مقدار `BOT_TOKEN` رو وارد کن، و روی Deploy بزن.
+   
+   6.بعد از اتمام دیپلوی، آدرس Worker رو (چیزی شبیه `https://tel-ai-bot.<account>.workers.dev`) به‌عنوان Webhook تلگرام ثبت کن:
 
 ```
 https://api.telegram.org/bot<BOT_TOKEN>/setWebhook?url=<آدرس Worker شما>
