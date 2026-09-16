@@ -6,24 +6,26 @@
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=<YOUR_REPO_URL>)
 
-> ⚠️ قبل از استفاده از دکمهٔ بالا، لینک `<YOUR_REPO_URL>` رو با آدرس ریپوی گیت‌هاب خودت (بعد از push کردن این فایل‌ها) جایگزین کن. توضیح کامل مراحل پایین همین فایل اومده.
+> ⚠️ قبل از استفاده از دکمهٔ بالا، لینک `<YOUR_REPO_URL>` رو **یک‌بار** با آدرس ریپوی گیت‌هاب خودت (بعد از push کردن این فایل‌ها) جایگزین کن — مثلاً `https://github.com/USERNAME/REPO_NAME`. این ویرایش فقط همون یک‌بار لازمه؛ از اون به بعد هرکسی (خودت یا هرکس دیگه) روی همون دکمه کلیک کنه، مستقیم توی اکانت کلادفلر خودش دیپلوی می‌شه — بدون فورک کردن، بدون هیچ ویرایش دیگه‌ای.
 
 هنگام کلیک روی دکمه:
 - یک namespace جدید از **Workers KV** (برای تاریخچهٔ چت و مدل انتخابی هر کاربر) خودکار ساخته می‌شود.
 - اتصال به **Workers AI** خودکار برقرار می‌شود.
-- فقط سه مقدار زیر از شما پرسیده می‌شود:
+- مقادیر زیر از شما پرسیده می‌شود (فقط `BOT_TOKEN` الزامیه):
   - `BOT_TOKEN` (الزامی) — توکن ربات از @BotFather
   - `TAVILY_API_KEY` (اختیاری) — برای جستجوی زنده در وب
   - `ALLOWED_USER_IDS` (اختیاری) — محدود کردن دسترسی به شناسه‌های تلگرام مشخص
+  - `CF_ACCOUNT_ID` (اختیاری) — برای نمایش مصرف روزانهٔ Neuron در `/start`
+  - `CF_API_TOKEN` (اختیاری) — همراه با `CF_ACCOUNT_ID` برای همون نمایش مصرف
 
 ## مراحل کامل راه‌اندازی
 
 1. یک ریپوی جدید و **عمومی (public)** در گیت‌هاب بساز.
-2. فایل‌های همین پوشه (`ai.js`، `wrangler.jsonc`، `package.json`، `README.md`) رو داخلش push کن.
-3. توی همین `README.md`، آدرس `<YOUR_REPO_URL>` توی لینک دکمهٔ بالا رو با آدرس ریپوی خودت عوض کن (مثلاً `https://github.com/USERNAME/REPO_NAME`) و دوباره push کن.
+2. فایل‌های همین بسته (`tel-ai-bot.js`، `wrangler.jsonc`، `package.json`، `README.md`) رو داخلش push کن.
+3. توی همین `README.md`، آدرس `<YOUR_REPO_URL>` توی لینک دکمهٔ بالا رو با آدرس ریپوی خودت عوض کن و دوباره push کن.
 4. حالا روی دکمهٔ «Deploy to Cloudflare» بالا (یا داخل ریپوی گیت‌هابت) کلیک کن.
 5. وارد اکانت Cloudflare‌ت شو، مقدار `BOT_TOKEN` رو وارد کن (بقیه اختیاریه)، و روی Deploy بزن.
-6. بعد از اتمام دیپلوی، آدرس Worker رو (چیزی شبیه `https://ai.<account>.workers.dev`) به‌عنوان Webhook تلگرام ثبت کن:
+6. بعد از اتمام دیپلوی، آدرس Worker رو (چیزی شبیه `https://tel-ai-bot.<account>.workers.dev`) به‌عنوان Webhook تلگرام ثبت کن:
 
 ```
 https://api.telegram.org/bot<BOT_TOKEN>/setWebhook?url=<آدرس Worker شما>
