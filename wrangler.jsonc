@@ -23,6 +23,8 @@
   "vars": {
     "BOT_TOKEN": "",
     "TAVILY_API_KEY": "",
-    "ALLOWED_USER_IDS": ""
+    "ALLOWED_USER_IDS": "",
+    "CF_ACCOUNT_ID": "",
+    "CF_API_TOKEN": ""
   }
 }
