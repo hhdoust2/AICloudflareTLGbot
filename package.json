@@ -1,0 +1,25 @@
+{
+  "name": "tel-ai-bot",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  },
+  "cloudflare": {
+    "bindings": {
+      "BOT_TOKEN": {
+        "description": "توکن ربات تلگرام. از [@BotFather](https://t.me/BotFather) با دستور /newbot بگیر. **الزامی**."
+      },
+      "TAVILY_API_KEY": {
+        "description": "اختیاری — کلید API از [tavily.com](https://tavily.com) برای جستجوی زنده در وب. اگر خالی بگذاری، ربات بدون جستجوی وب کار می‌کند."
+      },
+      "ALLOWED_USER_IDS": {
+        "description": "اختیاری — شناسه‌های عددی تلگرام کاربران مجاز، با کاما جدا شده (مثلاً `123456789,987654321`). اگر خالی بگذاری، ربات برای همه باز است."
+      }
+    }
+  }
+}

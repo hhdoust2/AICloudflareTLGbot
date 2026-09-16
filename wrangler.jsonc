@@ -1,0 +1,28 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "tel-ai-bot",
+  "main": "tel-ai-bot.js",
+  // این تاریخ رو تغییر نده مگر بخوای به نسخه‌های جدیدتر Workers runtime سوییچ کنی
+  "compatibility_date": "2026-09-16",
+
+  // اتصال به Workers AI — نیازی به id نداره، به‌صورت خودکار در دسترس قرار می‌گیره
+  "ai": {
+    "binding": "AI"
+  },
+
+  // فضای ذخیره‌سازی KV برای تاریخچهٔ چت، مدل انتخابی هر کاربر و ...
+  // id خالی یعنی: هنگام کلیک روی دکمهٔ Deploy، کلادفلر خودش این namespace رو می‌سازه
+  "kv_namespaces": [
+    {
+      "binding": "CHAT_HISTORY",
+      "id": ""
+    }
+  ],
+
+  // این مقادیر هنگام دیپلوی از کاربر پرسیده می‌شن (در صفحهٔ تنظیمات دکمهٔ Deploy)
+  "vars": {
+    "BOT_TOKEN": "",
+    "TAVILY_API_KEY": "",
+    "ALLOWED_USER_IDS": ""
+  }
+}

@@ -1,1 +1,40 @@
-# AICloudflareTLGbot
+# ربات هوش مصنوعی تلگرام (Cloudflare Workers)
+
+ربات تلگرامی با قابلیت انتخاب مدل چت، تشخیص گفتار (Whisper) و ساخت تصویر (FLUX)، روی Cloudflare Workers.
+
+## دیپلوی با یک کلیک
+
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=<YOUR_REPO_URL>)
+
+> ⚠️ قبل از استفاده از دکمهٔ بالا، لینک `<YOUR_REPO_URL>` رو با آدرس ریپوی گیت‌هاب خودت (بعد از push کردن این فایل‌ها) جایگزین کن. توضیح کامل مراحل پایین همین فایل اومده.
+
+هنگام کلیک روی دکمه:
+- یک namespace جدید از **Workers KV** (برای تاریخچهٔ چت و مدل انتخابی هر کاربر) خودکار ساخته می‌شود.
+- اتصال به **Workers AI** خودکار برقرار می‌شود.
+- فقط سه مقدار زیر از شما پرسیده می‌شود:
+  - `BOT_TOKEN` (الزامی) — توکن ربات از @BotFather
+  - `TAVILY_API_KEY` (اختیاری) — برای جستجوی زنده در وب
+  - `ALLOWED_USER_IDS` (اختیاری) — محدود کردن دسترسی به شناسه‌های تلگرام مشخص
+
+## مراحل کامل راه‌اندازی
+
+1. یک ریپوی جدید و **عمومی (public)** در گیت‌هاب بساز.
+2. فایل‌های همین پوشه (`ai.js`، `wrangler.jsonc`، `package.json`، `README.md`) رو داخلش push کن.
+3. توی همین `README.md`، آدرس `<YOUR_REPO_URL>` توی لینک دکمهٔ بالا رو با آدرس ریپوی خودت عوض کن (مثلاً `https://github.com/USERNAME/REPO_NAME`) و دوباره push کن.
+4. حالا روی دکمهٔ «Deploy to Cloudflare» بالا (یا داخل ریپوی گیت‌هابت) کلیک کن.
+5. وارد اکانت Cloudflare‌ت شو، مقدار `BOT_TOKEN` رو وارد کن (بقیه اختیاریه)، و روی Deploy بزن.
+6. بعد از اتمام دیپلوی، آدرس Worker رو (چیزی شبیه `https://ai.<account>.workers.dev`) به‌عنوان Webhook تلگرام ثبت کن:
+
+```
+https://api.telegram.org/bot<BOT_TOKEN>/setWebhook?url=<آدرس Worker شما>
+```
+
+همین! از این به بعد هر آپدیتی که تلگرام بفرسته مستقیم به Worker می‌رسه.
+
+## نکتهٔ امنیتی
+
+`BOT_TOKEN` فعلاً به‌صورت متغیر محیطی ساده (`vars`) ذخیره می‌شه تا در صفحهٔ دیپلوی قابل وارد کردن باشه. اگه می‌خوای مخفی‌تر باشه (به‌صورت secret واقعی)، بعد از دیپلوی اول می‌تونی با دستور زیر جایگزینش کنی:
+
+```
+wrangler secret put BOT_TOKEN
+```
