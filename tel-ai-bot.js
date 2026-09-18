@@ -213,6 +213,35 @@ async function transcribeVoice(env, fileId) {
 }
 __name(transcribeVoice, "transcribeVoice");
 
+// دانلود عمومی هر فایل تلگرام (عکس، سند، صوت و ...) و برگرداندن بایت‌های خام آن
+async function downloadTelegramFile(env, fileId) {
+  const fileInfoRes = await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/getFile?file_id=${fileId}`);
+  const fileInfo = await fileInfoRes.json();
+  if (!fileInfo.ok) {
+    throw new Error(fileInfo.description || "دریافت اطلاعات فایل از تلگرام ناموفق بود");
+  }
+  const fileRes = await fetch(`https://api.telegram.org/file/bot${env.BOT_TOKEN}/${fileInfo.result.file_path}`);
+  if (!fileRes.ok) {
+    throw new Error(`دانلود فایل از تلگرام ناموفق بود (${fileRes.status})`);
+  }
+  return await fileRes.arrayBuffer();
+}
+__name(downloadTelegramFile, "downloadTelegramFile");
+
+// تحلیل تصویر با مدل Vision کلادفلر (طبق فرمت رسمی: image به‌صورت data URI base64)
+async function analyzeImage(env, imageBuffer, userPrompt) {
+  const base64 = arrayBufferToBase64(imageBuffer);
+  const response = await env.AI.run("@cf/meta/llama-3.2-11b-vision-instruct", {
+    messages: [
+      { role: "system", content: "شما یک دستیار هوشمند فارسی‌زبان هستید که تصاویر را با دقت و به‌صورت مفید توصیف و تحلیل می‌کنید." },
+      { role: "user", content: userPrompt }
+    ],
+    image: `data:image/jpeg;base64,${base64}`
+  });
+  return (response?.response || response?.text || "").trim() || null;
+}
+__name(analyzeImage, "analyzeImage");
+
 // تشخیص اینکه متن حاوی حروف فارسی/عربی هست یا نه
 function isPersianText(text) {
   return /[\u0600-\u06FF]/.test(text);
@@ -339,9 +368,65 @@ export default {
       chatId = update.message.chat.id;
       let text = null;
 
-      // 🎙 پیام صوتی یا فایل صوتی: اول تبدیل به متن، بعد مثل یک پیام متنی عادی پردازش می‌شود
-      const voiceObj = update.message.voice || update.message.audio;
-      if (voiceObj) {
+      // 🖼 عکس: مستقیم با مدل Vision تحلیل می‌شود (مسیر جدا، وابسته به مدل چت انتخابی کاربر نیست)
+      if (update.message.photo && update.message.photo.length > 0) {
+        await sendTelegram(env.BOT_TOKEN, "sendChatAction", { chat_id: chatId, action: "typing" });
+        try {
+          const largestPhoto = update.message.photo[update.message.photo.length - 1];
+          const imageBuffer = await downloadTelegramFile(env, largestPhoto.file_id);
+          const userPrompt = (update.message.caption && update.message.caption.trim()) || "این تصویر را با جزئیات توصیف و تحلیل کن.";
+          const analysis = await analyzeImage(env, imageBuffer, userPrompt);
+          if (!analysis) {
+            throw new Error("مدل تصویری خروجی متنی برنگرداند.");
+          }
+          await sendTelegram(env.BOT_TOKEN, "sendMessage", {
+            chat_id: chatId,
+            text: formatForTelegram(analysis),
+            parse_mode: "HTML"
+          });
+        } catch (imgAnalysisErr) {
+          await sendTelegram(env.BOT_TOKEN, "sendMessage", {
+            chat_id: chatId,
+            text: `🚨 تحلیل تصویر ناموفق بود:\n<pre><code>${escapeHtml(imgAnalysisErr.message)}</code></pre>`,
+            parse_mode: "HTML"
+          });
+        }
+        return new Response("OK", { status: 200 });
+      }
+
+      // 📄 فایل متنی (.txt): محتوا خونده می‌شه و مثل یک پیام متنی وارد پایپ‌لاین اصلی می‌شه
+      const doc = update.message.document;
+      const isTextFile = doc && (doc.mime_type === "text/plain" || /\.txt$/i.test(doc.file_name || ""));
+      if (doc && !isTextFile) {
+        await sendTelegram(env.BOT_TOKEN, "sendMessage", {
+          chat_id: chatId,
+          text: "📎 فعلاً فقط فایل متنی ساده (.txt) پشتیبانی می‌شه."
+        });
+        return new Response("OK", { status: 200 });
+      }
+      if (isTextFile) {
+        await sendTelegram(env.BOT_TOKEN, "sendChatAction", { chat_id: chatId, action: "typing" });
+        try {
+          const fileBuffer = await downloadTelegramFile(env, doc.file_id);
+          let content = new TextDecoder("utf-8").decode(fileBuffer);
+          const MAX_CHARS = 8000;
+          let truncated = false;
+          if (content.length > MAX_CHARS) {
+            content = content.slice(0, MAX_CHARS);
+            truncated = true;
+          }
+          const instruction = (update.message.caption && update.message.caption.trim()) || "متن بالا را خلاصه و تحلیل کن.";
+          text = `${content}${truncated ? "\n\n[...به دلیل طولانی بودن فایل، ادامهٔ متن کوتاه شد...]" : ""}\n\n---\nدرخواست کاربر دربارهٔ متن بالا: ${instruction}`;
+        } catch (docErr) {
+          await sendTelegram(env.BOT_TOKEN, "sendMessage", {
+            chat_id: chatId,
+            text: `🚨 خواندن فایل ناموفق بود:\n<pre><code>${escapeHtml(docErr.message)}</code></pre>`,
+            parse_mode: "HTML"
+          });
+          return new Response("OK", { status: 200 });
+        }
+      } else if (update.message.voice || update.message.audio) {
+        const voiceObj = update.message.voice || update.message.audio;
         await sendTelegram(env.BOT_TOKEN, "sendChatAction", { chat_id: chatId, action: "typing" });
         try {
           text = await transcribeVoice(env, voiceObj.file_id);
@@ -375,12 +460,33 @@ export default {
         return new Response("OK", { status: 200 });
       }
 
+      // 🧭 تأیید یک‌بارهٔ لایسنس مدل Vision (لازم قبل از اولین استفاده از تحلیل عکس)
+      if (text === "/agreevision") {
+        try {
+          const licenseRes = await env.AI.run("@cf/meta/llama-3.2-11b-vision-instruct", { prompt: "agree" });
+          await sendTelegram(env.BOT_TOKEN, "sendMessage", {
+            chat_id: chatId,
+            text: `✅ لایسنس مدل تحلیل تصویر (Llama 3.2 Vision) تأیید شد.\n\nپاسخ کلادفلر:\n<pre><code>${escapeHtml(JSON.stringify(licenseRes).slice(0, 500))}</code></pre>\n\nحالا می‌تونی عکس بفرستی تا تحلیلش کنم.`,
+            parse_mode: "HTML"
+          });
+        } catch (licenseErr) {
+          await sendTelegram(env.BOT_TOKEN, "sendMessage", {
+            chat_id: chatId,
+            text: `🚨 تأیید لایسنس ناموفق بود:\n<pre><code>${escapeHtml(licenseErr.message)}</code></pre>`,
+            parse_mode: "HTML"
+          });
+        }
+        return new Response("OK", { status: 200 });
+      }
+
       // 🧭 دستور نمایش/تغییر مدل
       if (text === "/model" || text === "/models") {
         const currentKey = await getUserModelKey(env, chatId);
+        const neuronUsage = await getNeuronUsage(env);
+        const neuronText = formatNeuronUsage(neuronUsage);
         await sendTelegram(env.BOT_TOKEN, "sendMessage", {
           chat_id: chatId,
-          text: `مدل فعلی شما: <b>${escapeHtml(MODELS[currentKey].label)}</b>\nشناسه: <code>${escapeHtml(MODELS[currentKey].id)}</code>\n\nیکی از مدل‌های زیر رو انتخاب کن:`,
+      text: `سلام! من دستیار هوشمند شما هستم 🤖\n\n${neuronText}\n\nمدل فعلی: <b>${escapeHtml(MODELS[currentKey].label)}</b>\nشناسه: <code>${escapeHtml(MODELS[currentKey].id)}</code>\n\nیکی از مدل‌های زیر رو انتخاب کن:`,
           parse_mode: "HTML",
           reply_markup: buildModelKeyboard(currentKey)
         });
@@ -394,7 +500,10 @@ export default {
         const neuronText = formatNeuronUsage(neuronUsage);
         await sendTelegram(env.BOT_TOKEN, "sendMessage", {
           chat_id: chatId,
-          text: `سلام! من دستیار هوشمند شما هستم 🤖\n\n${neuronText}\n\nمدل فعلی: <b>${escapeHtml(MODELS[currentKey].label)}</b>\n\nهر سوالی داری بپرس. برای تغییر مدل هوش مصنوعی، دستور /model رو بفرست.`,
+          text: `سلام! من دستیار هوشمند شما هستم 🤖\n\n${neuronText}\n\nمدل فعلی: <b>${escapeHtml(MODELS[currentKey].label)}</b>\n\nهر سوالی داری بپرس
+برای فعالسازی تحلیل تصویر /agreevision بفرست
+. برای تغییر مدل هوش مصنوعی، دستور /model رو بفرست.`,
+          
           parse_mode: "HTML"
         });
         return new Response("OK", { status: 200 });
