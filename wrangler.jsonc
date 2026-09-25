@@ -14,8 +14,7 @@
   // id خالی یعنی: هنگام کلیک روی دکمهٔ Deploy، کلادفلر خودش این namespace رو می‌سازه
   "kv_namespaces": [
     {
-      "binding": "CHAT_HISTORY",
-      "id": ""
+      "binding": "CHAT_HISTORY"
     }
   ],
 
