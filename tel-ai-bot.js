@@ -92,7 +92,22 @@ __name(splitCodeBlocks, "splitCodeBlocks");
 // ممکن با هم ادغام می‌شوند — یعنی فقط وقتی پیام واقعاً طولانی باشد چند تکه می‌شود، نه هر بار
 // که مدل چند بلاک کد کوچک (مثل ```Dockerfile```) وسط متن استفاده کرده.
 const REPLY_MAX_LEN = 3800; // زیر سقف واقعی تلگرام برای اطمینان
-const REPLY_CODE_CHUNK = 3500;
+
+// یک متن خام را تا وقتی طول «HTML نهایی» (بعد از escape شدن < > & که کاراکتر بیشتری می‌شوند)
+// از سقف بیشتر است، از وسط (ترجیحاً سر خط) نصف می‌کند. هر تکهٔ خروجی کامل و مستقل است.
+function splitToFit(raw, render, maxLen) {
+  const html = render(raw);
+  if (html.length <= maxLen || raw.length <= 50) return [html];
+  let mid = raw.lastIndexOf("\n", Math.floor(raw.length / 2));
+  if (mid < raw.length * 0.25) mid = Math.floor(raw.length / 2);
+  return [
+    ...splitToFit(raw.slice(0, mid), render, maxLen),
+    ...splitToFit(raw.slice(mid), render, maxLen)
+  ];
+}
+__name(splitToFit, "splitToFit");
+
+const renderCodePiece = (raw) => `<pre><code>${escapeHtml(raw)}</code></pre>`;
 
 // متن خام را به آرایه‌ای از تکه‌های HTML «کامل و مستقل» تبدیل می‌کند (هیچ تگی نصفه نمی‌ماند)
 function buildReplyPieces(rawText) {
@@ -100,23 +115,35 @@ function buildReplyPieces(rawText) {
   const pieces = [];
   for (const seg of segments) {
     if (seg.type === "code") {
-      const raw = seg.content.trim();
-      for (let i = 0; i < raw.length; i += REPLY_CODE_CHUNK) {
-        const chunk = escapeHtml(raw.slice(i, i + REPLY_CODE_CHUNK));
-        pieces.push(`<pre><code>${chunk}</code></pre>`);
-      }
+      pieces.push(...splitToFit(seg.content.trim(), renderCodePiece, REPLY_MAX_LEN));
     } else {
       // نکته‌ی مهم: این‌جا trim نمی‌کنیم — فاصله/خطِ جدید دور هر بخش متنی نگه داشته می‌شود
       // تا وقتی تکه‌ها به هم می‌چسبند (مثلاً متن کنار یک بلاک کد کوچک)، به هم قالب نشوند.
-      const raw = seg.content;
-      for (let i = 0; i < raw.length; i += REPLY_MAX_LEN) {
-        pieces.push(formatForTelegram(raw.slice(i, i + REPLY_MAX_LEN)));
-      }
+      pieces.push(...splitToFit(seg.content, formatForTelegram, REPLY_MAX_LEN));
     }
   }
   return pieces;
 }
 __name(buildReplyPieces, "buildReplyPieces");
+
+// تبدیل HTML تلگرام به متن ساده (برای حالت اضطراری وقتی تلگرام HTML را نپذیرد)
+function htmlToPlain(html) {
+  return html
+    .replace(/<[^>]+>/g, "")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&");
+}
+__name(htmlToPlain, "htmlToPlain");
+
+// ارسال یک پیام HTML؛ اگر تلگرام با خطای ۴۰۰ (مثلاً HTML نامعتبر) ردش کرد، نسخهٔ متن ساده فرستاده می‌شود
+// تا پاسخ هیچ‌وقت بی‌صدا گم نشود.
+async function sendHtmlSafe(token, chatId, html) {
+  const res = await sendTelegram(token, "sendMessage", { chat_id: chatId, text: html, parse_mode: "HTML" });
+  if (res.ok || res.status !== 400) return;
+  await sendTelegram(token, "sendMessage", { chat_id: chatId, text: htmlToPlain(html).slice(0, 4096) });
+}
+__name(sendHtmlSafe, "sendHtmlSafe");
 
 async function replySmart(env, chatId, rawText) {
   const pieces = buildReplyPieces(rawText);
@@ -129,13 +156,13 @@ async function replySmart(env, chatId, rawText) {
   for (const piece of pieces) {
     // اگر اضافه‌کردن این تکه از سقف رد می‌شود، بافر فعلی را بفرست و یک پیام جدید شروع کن
     if (buffer && buffer.length + piece.length > REPLY_MAX_LEN) {
-      await sendTelegram(env.BOT_TOKEN, "sendMessage", { chat_id: chatId, text: buffer, parse_mode: "HTML" });
+      await sendHtmlSafe(env.BOT_TOKEN, chatId, buffer);
       buffer = "";
     }
     buffer += piece;
   }
   if (buffer) {
-    await sendTelegram(env.BOT_TOKEN, "sendMessage", { chat_id: chatId, text: buffer, parse_mode: "HTML" });
+    await sendHtmlSafe(env.BOT_TOKEN, chatId, buffer);
   }
 }
 __name(replySmart, "replySmart");
@@ -336,6 +363,59 @@ async function downloadTelegramFile(env, fileId) {
 }
 __name(downloadTelegramFile, "downloadTelegramFile");
 
+// 📄 تنظیمات خواندن PDF
+const PDF_MAX_BYTES = 15 * 1024 * 1024; // حداکثر حجم فایل PDF (تلگرام خودش برای ربات‌ها سقف ۲۰ مگابایت دارد)
+
+// 📎 تنظیمات مشترک فایل‌های متنی و PDF
+const DOC_MAX_CHARS = 25000;            // حداکثر تعداد کاراکتر از محتوای فایل که به مدل داده می‌شود
+const DOC_TTL_SECONDS = 6 * 60 * 60;    // فایل آخر کاربر تا ۶ ساعت (یا تا /new) برای سؤال‌های بعدی نگه داشته می‌شود
+
+// کوتاه کردن محتوای فایل در صورت طولانی بودن
+function clipDoc(content) {
+  if (content.length <= DOC_MAX_CHARS) return { content, truncated: false };
+  return {
+    content: content.slice(0, DOC_MAX_CHARS) + "\n\n[...ادامهٔ فایل به دلیل طولانی بودن کوتاه شد...]",
+    truncated: true
+  };
+}
+__name(clipDoc, "clipDoc");
+
+// متن کوتاهی که به‌جای «کل فایل» در تاریخچهٔ چت ذخیره می‌شود (خود فایل جداگانه در KV نگه داشته می‌شود)
+function fileMessageText(fileName, instruction) {
+  return `📎 فایل «${fileName || "نامشخص"}» ارسال شد.\nدرخواست: ${instruction}`;
+}
+__name(fileMessageText, "fileMessageText");
+
+// استخراج متن PDF با قابلیت داخلی کلادفلر (env.AI.toMarkdown) — بدون نیاز به کتابخانه یا متغیر جدید.
+// نکته: فقط متن «واقعی» داخل PDF خونده می‌شه؛ PDFهای اسکن‌شده/عکسی (بدون لایهٔ متن) خروجی خالی می‌دن.
+async function extractPdfText(env, fileBuffer, fileName) {
+  const makeDoc = () => ({
+    name: fileName || "document.pdf",
+    blob: new Blob([fileBuffer], { type: "application/pdf" })
+  });
+
+  let result;
+  try {
+    // خروجی متن ساده (بدون سینتکس مارک‌داون) و بدون متادیتا، تا توکن کمتری مصرف بشه
+    result = await env.AI.toMarkdown(makeDoc(), {
+      conversionOptions: { output: { format: "text" }, pdf: { metadata: false } }
+    });
+  } catch (optErr) {
+    // اگر به هر دلیلی گزینه‌ها پذیرفته نشد، بدون گزینه دوباره تلاش می‌کنیم
+    result = await env.AI.toMarkdown(makeDoc());
+  }
+
+  const item = Array.isArray(result) ? result[0] : result;
+  if (!item) {
+    throw new Error("تبدیل PDF خروجی برنگرداند.");
+  }
+  if (item.format === "error") {
+    throw new Error(item.error || "تبدیل PDF ناموفق بود.");
+  }
+  return String(item.data || "").trim();
+}
+__name(extractPdfText, "extractPdfText");
+
 // تحلیل تصویر با مدل Vision کلادفلر (طبق فرمت رسمی: image به‌صورت data URI base64)
 async function analyzeImage(env, imageBuffer, userPrompt) {
   const base64 = arrayBufferToBase64(imageBuffer);
@@ -435,15 +515,88 @@ async function handleCallbackQuery(env, callbackQuery) {
 }
 __name(handleCallbackQuery, "handleCallbackQuery");
 
+// مقایسهٔ دو رشته (برای بررسی secret)
+function safeEqual(a, b) {
+  a = String(a);
+  b = String(b);
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+__name(safeEqual, "safeEqual");
+
+// حافظهٔ کوتاه‌مدت آپدیت‌های اخیر (در حافظهٔ همین Worker؛ برای جلوگیری از پاسخ تکراری، تلاش حداکثری است)
+const recentUpdateIds = new Map();
+const UPDATE_DEDUP_MS = 10 * 60 * 1000;
+function isDuplicateUpdate(updateId) {
+  if (updateId === undefined || updateId === null) return false;
+  const now = Date.now();
+  for (const [id, t] of recentUpdateIds) {
+    if (now - t > UPDATE_DEDUP_MS || recentUpdateIds.size > 500) recentUpdateIds.delete(id);
+    else break;
+  }
+  if (recentUpdateIds.has(updateId)) return true;
+  recentUpdateIds.set(updateId, now);
+  return false;
+}
+__name(isDuplicateUpdate, "isDuplicateUpdate");
+
+// ثبت خودکار Webhook تلگرام روی آدرس همین Worker (با باز کردن آدرس /setup در مرورگر)
+async function setupWebhook(request, env) {
+  const headers = { "Content-Type": "text/plain; charset=utf-8" };
+  if (!env.BOT_TOKEN) {
+    return new Response("❌ BOT_TOKEN تنظیم نشده.", { status: 500, headers });
+  }
+  const payload = {
+    url: new URL(request.url).origin,
+    allowed_updates: ["message", "callback_query"]
+  };
+  if (env.WEBHOOK_SECRET) {
+    if (!/^[A-Za-z0-9_-]{1,256}$/.test(env.WEBHOOK_SECRET)) {
+      return new Response("❌ مقدار WEBHOOK_SECRET فقط می‌تونه شامل حروف انگلیسی، عدد، _ و - باشه (حداکثر ۲۵۶ کاراکتر).", { status: 400, headers });
+    }
+    payload.secret_token = env.WEBHOOK_SECRET;
+  }
+  try {
+    const res = await sendTelegram(env.BOT_TOKEN, "setWebhook", payload);
+    const data = await res.json();
+    if (data.ok) {
+      return new Response(`✅ Webhook ثبت شد.${env.WEBHOOK_SECRET ? " (محافظت با WEBHOOK_SECRET فعاله)" : ""}\nحالا به ربات توی تلگرام پیام بده.`, { status: 200, headers });
+    }
+    return new Response(`❌ تلگرام خطا داد: ${data.description || "نامشخص"}`, { status: 502, headers });
+  } catch (err) {
+    return new Response(`❌ خطا در ثبت Webhook: ${err.message}`, { status: 502, headers });
+  }
+}
+__name(setupWebhook, "setupWebhook");
+
 export default {
   async fetch(request, env, ctx) {
     if (request.method !== "POST") {
+      // /setup: ثبت خودکار Webhook (با secret_token اگر WEBHOOK_SECRET تنظیم شده باشد)
+      if (new URL(request.url).pathname === "/setup") {
+        return await setupWebhook(request, env);
+      }
       return new Response("Telegram Bot AI Server is running!", { status: 200 });
+    }
+
+    // 🔐 اگر WEBHOOK_SECRET تنظیم شده باشد، فقط درخواست‌هایی که هدر مخصوص تلگرام را با همین مقدار دارند پذیرفته می‌شوند
+    if (env.WEBHOOK_SECRET) {
+      const got = request.headers.get("X-Telegram-Bot-Api-Secret-Token") || "";
+      if (!safeEqual(got, env.WEBHOOK_SECRET)) {
+        return new Response("Forbidden", { status: 403 });
+      }
     }
 
     let chatId = null;
     try {
       const update = await request.json();
+
+      // ♻️ تلگرام اگر جواب را دیر بگیرد همان آپدیت را دوباره می‌فرستد؛ تکراری‌ها نادیده گرفته می‌شوند
+      if (isDuplicateUpdate(update?.update_id)) {
+        return new Response("OK", { status: 200 });
+      }
 
       // 🔒 بررسی مجاز بودن کاربر — قبل از هر پردازش دیگری
       const incomingUserId = update?.message?.from?.id ?? update?.callback_query?.from?.id ?? null;
@@ -475,6 +628,8 @@ export default {
 
       chatId = update.message.chat.id;
       let text = null;
+      let isFileMessage = false; // اگر پیام یک فایل (متنی/PDF) باشد، سرچ وب انجام نمی‌شود
+      let pendingDoc = null;     // محتوای فایلِ همین پیام: { name, content } — جدا از تاریخچهٔ چت نگه داشته می‌شود
 
       // 🖼 عکس: مستقیم با مدل Vision تحلیل می‌شود (مسیر جدا، وابسته به مدل چت انتخابی کاربر نیست)
       if (update.message.photo && update.message.photo.length > 0) {
@@ -518,10 +673,14 @@ export default {
           ].includes(doc.mime_type || "") ||
           TEXT_FILE_EXTENSIONS.test(doc.file_name || "")
         );
-      if (doc && !isTextFile) {
+      const isPdf =
+        doc &&
+        !isTextFile &&
+        (doc.mime_type === "application/pdf" || /\.pdf$/i.test(doc.file_name || ""));
+      if (doc && !isTextFile && !isPdf) {
         await sendTelegram(env.BOT_TOKEN, "sendMessage", {
           chat_id: chatId,
-          text: "📎 این فرمت فایل پشتیبانی نمی‌شه. فایل‌های متنی/کد (مثل txt, html, js, css, json, py, md) رو می‌تونی بفرستی؛ فایل‌های باینری مثل Word/Excel/PDF فعلاً پشتیبانی نمی‌شن."
+          text: "📎 این فرمت فایل پشتیبانی نمی‌شه. فایل PDF و فایل‌های متنی/کد (مثل txt, html, js, css, json, py, md) رو می‌تونی بفرستی؛ فایل‌های باینری مثل Word/Excel فعلاً پشتیبانی نمی‌شن."
         });
         return new Response("OK", { status: 200 });
       }
@@ -529,19 +688,64 @@ export default {
         await sendTelegram(env.BOT_TOKEN, "sendChatAction", { chat_id: chatId, action: "typing" });
         try {
           const fileBuffer = await downloadTelegramFile(env, doc.file_id);
-          let content = new TextDecoder("utf-8").decode(fileBuffer);
-          const MAX_CHARS = 50000;
-          let truncated = false;
-          if (content.length > MAX_CHARS) {
-            content = content.slice(0, MAX_CHARS);
-            truncated = true;
+          const clipped = clipDoc(new TextDecoder("utf-8").decode(fileBuffer));
+          if (clipped.truncated) {
+            await sendTelegram(env.BOT_TOKEN, "sendMessage", {
+              chat_id: chatId,
+              text: `⚠️ این فایل طولانیه؛ فقط ${DOC_MAX_CHARS.toLocaleString("en-US")} کاراکتر اولش خونده شد.`
+            });
           }
           const instruction = (update.message.caption && update.message.caption.trim()) || "این فایل را بررسی، خلاصه و تحلیل کن.";
-          text = `نام فایل: ${doc.file_name || "نامشخص"}\n\n${content}${truncated ? "\n\n[...به دلیل طولانی بودن فایل، ادامهٔ متن کوتاه شد...]" : ""}\n\n---\nدرخواست کاربر دربارهٔ فایل بالا: ${instruction}`;
+          pendingDoc = { name: doc.file_name || "نامشخص", content: clipped.content };
+          text = fileMessageText(doc.file_name, instruction);
+          isFileMessage = true;
         } catch (docErr) {
           await sendTelegram(env.BOT_TOKEN, "sendMessage", {
             chat_id: chatId,
             text: `🚨 خواندن فایل ناموفق بود:\n<pre><code>${escapeHtml(docErr.message)}</code></pre>`,
+            parse_mode: "HTML"
+          });
+          return new Response("OK", { status: 200 });
+        }
+      } else if (isPdf) {
+        // 📄 فایل PDF: متن داخلش استخراج می‌شه و مثل یک پیام متنی وارد پایپ‌لاین اصلی می‌شه
+        await sendTelegram(env.BOT_TOKEN, "sendChatAction", { chat_id: chatId, action: "typing" });
+        try {
+          if (doc.file_size && doc.file_size > PDF_MAX_BYTES) {
+            await sendTelegram(env.BOT_TOKEN, "sendMessage", {
+              chat_id: chatId,
+              text: `📄 حجم این PDF بیشتر از ${PDF_MAX_BYTES / (1024 * 1024)} مگابایته و نمی‌تونم بخونمش. یه فایل کم‌حجم‌تر یا چند صفحهٔ اولش رو بفرست.`
+            });
+            return new Response("OK", { status: 200 });
+          }
+
+          const pdfBuffer = await downloadTelegramFile(env, doc.file_id);
+          let pdfContent = await extractPdfText(env, pdfBuffer, doc.file_name);
+
+          if (!pdfContent) {
+            await sendTelegram(env.BOT_TOKEN, "sendMessage", {
+              chat_id: chatId,
+              text: "📄 هیچ متنی داخل این PDF پیدا نکردم. احتمالاً اسکن‌شده یا عکسیه (متن قابل انتخاب نداره). اگه صفحه‌ها رو به‌صورت عکس بفرستی، می‌تونم با تحلیل تصویر بررسی‌شون کنم."
+            });
+            return new Response("OK", { status: 200 });
+          }
+
+          const clippedPdf = clipDoc(pdfContent);
+          if (clippedPdf.truncated) {
+            await sendTelegram(env.BOT_TOKEN, "sendMessage", {
+              chat_id: chatId,
+              text: `⚠️ این PDF طولانیه؛ فقط ${DOC_MAX_CHARS.toLocaleString("en-US")} کاراکتر اولش خونده شد.`
+            });
+          }
+
+          const pdfInstruction = (update.message.caption && update.message.caption.trim()) || "این فایل را بررسی، خلاصه و تحلیل کن.";
+          pendingDoc = { name: doc.file_name || "نامشخص", content: clippedPdf.content };
+          text = fileMessageText(doc.file_name, pdfInstruction);
+          isFileMessage = true;
+        } catch (pdfErr) {
+          await sendTelegram(env.BOT_TOKEN, "sendMessage", {
+            chat_id: chatId,
+            text: `🚨 خواندن PDF ناموفق بود:\n<pre><code>${escapeHtml(pdfErr.message)}</code></pre>`,
             parse_mode: "HTML"
           });
           return new Response("OK", { status: 200 });
@@ -585,6 +789,7 @@ export default {
       if (text === "/new" || text === "/clear" || text === "/reset") {
         if (env.CHAT_HISTORY) {
           await env.CHAT_HISTORY.delete(`chat_${chatId}`);
+          await env.CHAT_HISTORY.delete(`doc_${chatId}`);
         }
         await sendTelegram(env.BOT_TOKEN, "sendMessage", {
           chat_id: chatId,
@@ -634,7 +839,7 @@ export default {
         await sendTelegram(env.BOT_TOKEN, "sendMessage", {
           chat_id: chatId,
           text: `سلام! من دستیار هوشمند شما هستم 🤖
-چت،ارسال فایل صوتی و تصویری و ساخت تصویر
+چت، ارسال فایل صوتی و تصویری، خواندن PDF و فایل‌های متنی، و ساخت تصویر
 \n\n${neuronText}\n\nمدل فعلی: <b>${escapeHtml(MODELS[currentKey].label)}</b>\n\nهر سوالی داری بپرس. برای تغییر مدل، دستور /model رو بفرست. برای فعال‌سازی تحلیل تصویر (فقط یک‌بار لازمه)، دستور /agreevision  دو بار رو بفرست. برای شروع یه مکالمهٔ تازه (پاک کردن حافظهٔ گفتگوی قبلی)، دستور /new رو بفرست.`,
           parse_mode: "HTML"
         });
@@ -650,6 +855,13 @@ export default {
 
       // 🎨 اگر کاربر گزینهٔ «ساخت تصویر» رو انتخاب کرده، مسیر کاملاً جدا از چت متنی طی می‌شود
       if (MODELS[modelKey].type === "image") {
+        if (isFileMessage) {
+          await sendTelegram(env.BOT_TOKEN, "sendMessage", {
+            chat_id: chatId,
+            text: "📎 برای خوندن فایل باید یکی از مدل‌های چت رو انتخاب کنی. دستور /model رو بفرست و مدل چت رو انتخاب کن، بعد فایل رو دوباره بفرست."
+          });
+          return new Response("OK", { status: 200 });
+        }
         await sendTelegram(env.BOT_TOKEN, "sendChatAction", { chat_id: chatId, action: "upload_photo" });
         try {
           const persian = isPersianText(text);
@@ -680,9 +892,28 @@ export default {
 
       // انجام سرچ زنده در اینترنت
       let webResults = "کاربر سوالی نپرسیده که نیاز به سرچ داشته باشد.";
-      if (env.TAVILY_API_KEY) {
-        webResults = await searchWeb(text, env.TAVILY_API_KEY);
+      if (env.TAVILY_API_KEY && !isFileMessage) {
+        // Tavily فقط کوئری کوتاه می‌پذیرد؛ محتوای کامل فایل هرگز به‌عنوان کوئری سرچ فرستاده نمی‌شود
+        webResults = await searchWeb(text.slice(0, 400), env.TAVILY_API_KEY);
       }
+
+      // 📎 فایل فعال کاربر: اگر همین پیام فایل دارد ذخیره می‌شود، وگرنه آخرین فایل قبلی (تا ۶ ساعت) خوانده می‌شود.
+      // محتوای فایل فقط در پرامپت سیستم می‌آید (یک نسخه)، نه در تاریخچهٔ چت که هر بار تکرار شود.
+      let activeDoc = null;
+      if (pendingDoc) {
+        activeDoc = pendingDoc;
+        if (env.CHAT_HISTORY) {
+          await env.CHAT_HISTORY.put(`doc_${chatId}`, JSON.stringify(pendingDoc), { expirationTtl: DOC_TTL_SECONDS });
+        }
+      } else if (env.CHAT_HISTORY) {
+        const savedDoc = await env.CHAT_HISTORY.get(`doc_${chatId}`);
+        if (savedDoc) {
+          try { activeDoc = JSON.parse(savedDoc); } catch (e) { activeDoc = null; }
+        }
+      }
+      const docBlock = activeDoc
+        ? `\n\n[فایل پیوست‌شدهٔ کاربر: ${activeDoc.name}]\n\"\"\"\n${activeDoc.content}\n\"\"\"\nهر وقت کاربر دربارهٔ «فایل»، «این متن» یا «این سند» پرسید، پاسخ را بر اساس محتوای همین فایل بده.`
+        : "";
 
       // ساخت پرامپت سیستم پویا و تزریق ساعت زنده ایران + اطلاعات وب
       const dynamicSystemPrompt = `تو یک دستیار هوشمند بسیار صمیمی، دانا و متصل به اینترنت زنده هستی.
@@ -709,6 +940,8 @@ export default {
 \"\"\"
 ${webResults}
 \"\"\"
+
+${docBlock}
 
 وظیفه تو: با استفاده از اطلاعات زنده بالا و زمان دقیق ایران، پاسخ کاربر را بنویس.`;
 
