@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "tel-ai-bot1",
+  "name": "tel-ai-bot",
   "main": "tel-ai-bot.js",
   // این تاریخ رو تغییر نده مگر بخوای به نسخه‌های جدیدتر Workers runtime سوییچ کنی
   "compatibility_date": "2026-09-16",
@@ -15,7 +15,7 @@
   "kv_namespaces": [
     {
       "binding": "CHAT_HISTORY",
-      "id": "167411b4c96a406e8f887e8a89b6f847"
+      "id": ""
     }
   ],
 
