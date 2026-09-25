@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "tel-ai-bot",
+  "name": "tel-ai-chatbot",
   "main": "tel-ai-bot.js",
   // این تاریخ رو تغییر نده مگر بخوای به نسخه‌های جدیدتر Workers runtime سوییچ کنی
   "compatibility_date": "2026-09-16",
