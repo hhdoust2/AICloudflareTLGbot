@@ -853,6 +853,35 @@ async function handleUpdate(env, update) {
         // نوع پیام پشتیبانی‌نشده (عکس، استیکر و ...)
         return;
       }
+      
+   // جست‌وجوی وب فقط وقتی کاربر با /search درخواست کند
+let forceWebSearch = false;
+
+const searchMatch = text?.match(/^\/search(?:@\w+)?(?:\s+([\s\S]*))?$/i);
+
+if (searchMatch) {
+  const searchQuery = searchMatch[1]?.trim();
+
+  if (!searchQuery) {
+    await sendTelegram(env.BOT_TOKEN, "sendMessage", {
+      chat_id: chatId,
+      text: "برای جست‌وجوی وب بنویس:\n/search موضوع موردنظر"
+    });
+    return;
+  }
+
+  if (!env.TAVILY_API_KEY) {
+    await sendTelegram(env.BOT_TOKEN, "sendMessage", {
+      chat_id: chatId,
+      text: "کلید Tavily در تنظیمات ربات فعال نیست."
+    });
+    return;
+  }
+
+  text = searchQuery;
+  forceWebSearch = true;
+}
+
 
       // 🆕 شروع مکالمهٔ جدید: تاریخچهٔ چت این کاربر از KV پاک می‌شه تا مدل دیگه موضوع قبلی رو ادامه نده
       if (text === "/new" || text === "/clear" || text === "/reset") {
@@ -960,10 +989,11 @@ async function handleUpdate(env, update) {
       const currentDateIran = now.toLocaleDateString('fa-IR', dateOptions);
 
       // انجام سرچ زنده در اینترنت
-      let webResults = "کاربر سوالی نپرسیده که نیاز به سرچ داشته باشد.";
-      if (env.TAVILY_API_KEY && !isFileMessage) {
-        // Tavily فقط کوئری کوتاه می‌پذیرد؛ محتوای کامل فایل هرگز به‌عنوان کوئری سرچ فرستاده نمی‌شود
-        webResults = await searchWeb(text.slice(0, 400), env.TAVILY_API_KEY);
+      let webResults = "برای این پیام جست‌وجوی وب انجام نشده است.";
+
+if (forceWebSearch && !isFileMessage) {
+  webResults = await searchWeb(text.slice(0, 400), env.TAVILY_API_KEY);
+
       }
 
       // 📎 فایل فعال کاربر: اگر همین پیام فایل دارد ذخیره می‌شود، وگرنه آخرین فایل قبلی (تا ۶ ساعت) خوانده می‌شود.
