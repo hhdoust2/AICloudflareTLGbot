@@ -392,6 +392,59 @@ const PDF_MAX_BYTES = 15 * 1024 * 1024; // حداکثر حجم فایل PDF (ت�
 const VOICE_MAX_DURATION_SECONDS = 10 * 60; // ۱۰ دقیقه — سقف امن برای یک درخواست Whisper
 const VOICE_MAX_BYTES = 20 * 1024 * 1024;   // سقف حجمی تلگرام برای دانلود فایل توسط ربات‌ها
 
+// 🗓 تقویم مناسبت‌های ملی/باستانی/فرهنگی ایران (بدون مذهبی/سیاسی) — از calendar.json
+const CALENDAR_DATA = {"calendar_type": "shamsi", "description": "تقویم کامل مناسبت‌های ملی، باستانی و فرهنگی ایران (بدون مناسبت‌های مذهبی و سیاسی)", "months": [{"name": "فروردین", "number": 1, "events": [{"day": 1, "title": "نوروز", "description": "آغاز سال نو ایرانی و جشن بهار"}, {"day": 6, "title": "جشن امید / زادروز زرتشت", "description": "جشن شادباش‌نویسی"}, {"day": 10, "title": "جشن آبانگاه", "description": "جشن آب"}, {"day": 13, "title": "سیزده‌بدر", "description": "جشن طبیعت و پایان نوروز"}, {"day": 17, "title": "جشن سروشگان", "description": "جشن سرود و نیایش"}, {"day": 19, "title": "جشن فروردینگان", "description": "گرامیداشت درگذشتگان"}, {"day": 25, "title": "روز عطار", "description": "گرامیداشت فریدالدین عطار نیشابوری"}]}, {"name": "اردیبهشت", "number": 2, "events": [{"day": 1, "title": "روز سعدی", "description": "گرامیداشت شیخ مصلح‌الدین سعدی"}, {"day": 2, "title": "جشن گیاه‌آوری", "description": "جشن سبزه و گیاه"}, {"day": 2, "title": "روز زمین پاک", "description": "پاسداشت محیط زیست"}, {"day": 3, "title": "جشن اردیبهشتگان", "description": "جشن راستی و پاکی"}, {"day": 10, "title": "جشن چهل‌نوروز", "description": "پایان چلهٔ نوروز"}, {"day": 10, "title": "روز ملی خلیج فارس", "description": "پاسداشت هویت دریایی و ملی خلیج فارس"}, {"day": 15, "title": "جشن میانهٔ بهار", "description": "روز پیام‌آوری زرتشت"}, {"day": 25, "title": "روز فردوسی", "description": "پاسداشت حکیم ابوالقاسم فردوسی و زبان فارسی"}, {"day": 26, "title": "روز میراث فرهنگی", "description": "گرامیداشت بناها و میراث تاریخی ایران"}, {"day": 28, "title": "روز خیام", "description": "گرامیداشت حکیم عمر خیام نیشابوری"}]}, {"name": "خرداد", "number": 3, "events": [{"day": 1, "title": "جشن گرما (ارغاسوان)", "description": "جشن آغاز گرما"}, {"day": 6, "title": "جشن خردادگان", "description": "جشن آب و رسایی"}]}, {"name": "تیر", "number": 4, "events": [{"day": 1, "title": "جشن آب‌پاشون", "description": "جشن آب‌پاشی"}, {"day": 4, "title": "جشن چلهٔ تموز", "description": "چلهٔ تابستان (تیر)"}, {"day": 6, "title": "جشن نیلوفر", "description": "جشن گل نیلوفر آبی"}, {"day": 10, "title": "روز صنعت و معدن", "description": "بزرگداشت فعالان صنعت و معدن"}, {"day": 13, "title": "جشن تیرگان", "description": "جشن آب و باران"}]}, {"name": "مرداد", "number": 5, "events": [{"day": 7, "title": "جشن امردادگان", "description": "جشن جاودانگی"}]}, {"name": "شهریور", "number": 6, "events": [{"day": 1, "title": "روز ابوعلی سینا", "description": "بزرگداشت پزشک و فیلسوف نامدار"}, {"day": 4, "title": "روز ابوریحان بیرونی", "description": "بزرگداشت دانشمند برجستهٔ ایرانی"}, {"day": 4, "title": "جشن شهریورگان", "description": "جشن مهر و شهریاری"}, {"day": 5, "title": "روز زکریای رازی", "description": "پزشک و شیمیدان بزرگ"}, {"day": 27, "title": "روز شعر و ادب فارسی", "description": "گرامیداشت شهریار و شعر فارسی"}]}, {"name": "مهر", "number": 7, "events": [{"day": 2, "title": "روز ریاضیات / خوارزمی", "description": "گرامیداشت محمد بن موسی خوارزمی"}, {"day": 8, "title": "روز مولانا", "description": "گرامیداشت جلال‌الدین محمد مولوی"}, {"day": 16, "title": "جشن مهرگان", "description": "جشن مهر، پیمان و شکرگزاری پاییزی"}, {"day": 20, "title": "روز حافظ", "description": "گرامیداشت لسان‌الغیب حافظ شیرازی"}]}, {"name": "آبان", "number": 8, "events": [{"day": 7, "title": "روز کوروش بزرگ", "description": "گرامیداشت بنیانگذار شاهنشاهی هخامنشی"}, {"day": 10, "title": "جشن آبانگان", "description": "جشن آب و چشمه‌ها"}, {"day": 21, "title": "روز نیما یوشیج", "description": "بزرگداشت پدر شعر نو ایران"}]}, {"name": "آذر", "number": 9, "events": [{"day": 3, "title": "جشن آذرگان", "description": "جشن آتش و روشنایی"}, {"day": 30, "title": "شب یلدا (شب چله)", "description": "بلندترین شب سال و گرامیداشت تولد دوبارهٔ خورشید"}]}, {"name": "دی", "number": 10, "events": [{"day": 1, "title": "جشن خرم‌روز", "description": "جشن آغاز دی و شکوفایی"}, {"day": 1, "title": "جشن دیگان بزرگ", "description": "جشن اهورامزدا"}, {"day": 8, "title": "جشن دیگان (دی به آذر)", "description": ""}, {"day": 15, "title": "جشن دیگان (دی به مهر)", "description": ""}, {"day": 23, "title": "جشن دیگان (دی به دین)", "description": ""}, {"day": 29, "title": "روز ملی هوای پاک", "description": "توجه به آلودگی هوا و حفظ محیط زیست"}]}, {"name": "بهمن", "number": 11, "events": [{"day": 2, "title": "جشن بهمنگان", "description": "جشن نیک‌اندیشی"}, {"day": 2, "title": "روز جابر بن حیان", "description": "بزرگداشت دانشمند کیمیاگر و هویت علمی ایرانی"}, {"day": 5, "title": "جشن نوسره (نورسره)", "description": "جشن نوکردن و شادی"}, {"day": 10, "title": "جشن سده", "description": "جشن آتش در میانهٔ زمستان"}, {"day": 22, "title": "جشن بادروز", "description": "جشن باد و نسیم"}]}, {"name": "اسفند", "number": 12, "events": [{"day": 5, "title": "جشن سپندارمذگان (اسفندگان)", "description": "روز عشق ایرانی و گرامیداشت زمین و زنان"}, {"day": 15, "title": "روز ملی درختکاری", "description": "کاشت نهال و احیای منابع طبیعی"}, {"day": 17, "title": "چهارشنبه‌سوری", "description": "جشن آتش و دفع بلا"}, {"day": 21, "title": "روز نظامی گنجوی", "description": "بزرگداشت حکیم نظامی"}, {"day": 29, "title": "سالروز ملی شدن صنعت نفت", "description": "تصویب قانون ملی شدن نفت (۱۳۲۹)"}]}], "events_without_fixed_date": [{"title": "چهارشنبه‌سوری", "description": "آخرین چهارشنبه سال"}, {"title": "جشن هرمز", "description": "نخستین روز هر ماه در تقویم باستانی"}, {"title": "گاهنبارها", "description": "۶ جشن در طول سال: میدیوزرم، میدیوشم، پتیهشیم، ایاسرم، میدیاریم، همسپتمدم"}, {"title": "جشن بِهیزَکی", "description": "هر چهار سال یکبار"}, {"title": "جشن درمزد/دارمزد", "description": ""}, {"title": "جشن دیبه‌آذر، دیبه‌روین، دیبه‌مهر", "description": ""}, {"title": "جشن سروشگان روز", "description": ""}]}
+;
+
+// روز و ماه شمسی «امروز» (به وقت تهران) به‌صورت عدد انگلیسی، با Intl — چیزی نصب/دانلود نمی‌شه
+function getShamsiTodayParts(now) {
+  const parts = new Intl.DateTimeFormat('fa-IR-u-ca-persian-nu-latn', {
+    timeZone: 'Asia/Tehran', day: 'numeric', month: 'numeric'
+  }).formatToParts(now);
+  return {
+    day: Number(parts.find((p) => p.type === 'day')?.value),
+    month: Number(parts.find((p) => p.type === 'month')?.value)
+  };
+}
+__name(getShamsiTodayParts, "getShamsiTodayParts");
+
+// مناسبت‌های «امروز» (فقط اونایی که توی فایل تاریخ ثابت دارن)
+function getTodaysEvents(now) {
+  const { day, month } = getShamsiTodayParts(now);
+  const monthData = CALENDAR_DATA.months.find((m) => m.number === month);
+  return monthData ? monthData.events.filter((e) => e.day === day) : [];
+}
+__name(getTodaysEvents, "getTodaysEvents");
+
+// کل تقویم به‌صورت متن فشرده (برای وقتی که کاربر مستقیم دربارهٔ مناسبت‌ها سؤال می‌پرسه)
+function buildFullCalendarText() {
+  const lines = [];
+  for (const m of CALENDAR_DATA.months) {
+    for (const e of m.events) {
+      lines.push(`${m.number}/${e.day} (${m.name}): ${e.title} — ${e.description}`);
+    }
+  }
+  const movable = CALENDAR_DATA.events_without_fixed_date || [];
+  if (movable.length) {
+    lines.push("جشن‌های بدون تاریخ ثابت (هر سال فرق می‌کنه، فقط اطلاعات عمومی، خودکار با امروز چک نمی‌شه):");
+    for (const e of movable) lines.push(`${e.title} — ${e.description}`);
+  }
+  return lines.join("\n");
+}
+__name(buildFullCalendarText, "buildFullCalendarText");
+
+// آیا پیام کاربر دربارهٔ مناسبت/تقویم به نظر می‌رسه؟ (برای تصمیم اینکه کل تقویم به پرامپت اضافه بشه یا نه)
+const CALENDAR_KEYWORDS = [
+  "مناسبت", "جشن", "تقویم", "روز ملی", "گاهنبار",
+  "فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور",
+  "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند"
+];
+function textAsksAboutCalendar(t) {
+  if (!t) return false;
+  return CALENDAR_KEYWORDS.some((k) => t.includes(k));
+}
+__name(textAsksAboutCalendar, "textAsksAboutCalendar");
+
 // 📎 تنظیمات مشترک فایل‌های متنی و PDF
 const DOC_MAX_CHARS = 50000;            // حداکثر تعداد کاراکتر از محتوای فایل که به مدل داده می‌شود
 const DOC_TTL_SECONDS = 6 * 60 * 60;    // فایل آخر کاربر تا ۶ ساعت (یا تا /new) برای سؤال‌های بعدی نگه داشته می‌شود
@@ -929,6 +982,24 @@ if (searchMatch) {
         return;
       }
 
+      // 🗓 دستور نمایش مناسبت امروز — مستقیم از روی calendar.json، بدون صدا زدن مدل هوش مصنوعی
+      if (text === "/event" || text === "/events") {
+        const nowForEvent = new Date();
+        const todays = getTodaysEvents(nowForEvent);
+        const dateLabel = nowForEvent.toLocaleDateString('fa-IR', {
+          timeZone: 'Asia/Tehran', calendar: 'persian', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+        });
+        const body = todays.length
+          ? todays.map((e) => `🎉 <b>${escapeHtml(e.title)}</b>\n${escapeHtml(e.description)}`).join("\n\n")
+          : "امروز مناسبت ملی/باستانی/فرهنگی خاصی ثبت نشده.";
+        await sendTelegram(env.BOT_TOKEN, "sendMessage", {
+          chat_id: chatId,
+          text: `📅 ${escapeHtml(dateLabel)}\n\n${body}`,
+          parse_mode: "HTML"
+        });
+        return;
+      }
+
       // 🧭 دستور شروع
       if (text === "/start") {
         const currentKey = await getUserModelKey(env, chatId);
@@ -938,7 +1009,7 @@ if (searchMatch) {
           chat_id: chatId,
           text: `سلام! من دستیار هوشمند شما هستم 🤖
 چت، ارسال فایل صوتی و تصویری، خواندن PDF و فایل‌های متنی، و ساخت تصویر
-\n\n${neuronText}\n\nمدل فعلی: <b>${escapeHtml(MODELS[currentKey].label)}</b>\n\nهر سوالی داری بپرس. برای تغییر مدل، دستور /model رو بفرست. برای فعال‌سازی تحلیل تصویر (فقط یک‌بار لازمه)، دستور /agreevision  دو بار رو بفرست. برای شروع یه مکالمهٔ تازه (پاک کردن حافظهٔ گفتگوی قبلی)، دستور /new رو بفرست.`,
+\n\n${neuronText}\n\nمدل فعلی: <b>${escapeHtml(MODELS[currentKey].label)}</b>\n\nهر سوالی داری بپرس. برای تغییر مدل، دستور /model رو بفرست. برای فعال‌سازی تحلیل تصویر (فقط یک‌بار لازمه)، دستور /agreevision  دو بار رو بفرست. برای شروع یه مکالمهٔ تازه (پاک کردن حافظهٔ گفتگوی قبلی)، دستور /new رو بفرست. برای دیدن مناسبت امروز، دستور /event رو بفرست.`,
           parse_mode: "HTML"
         });
         return;
@@ -1014,6 +1085,24 @@ if (forceWebSearch && !isFileMessage) {
         ? `\n\n[فایل پیوست‌شدهٔ کاربر: ${activeDoc.name}]\n\"\"\"\n${activeDoc.content}\n\"\"\"\nهر وقت کاربر دربارهٔ «فایل»، «این متن» یا «این سند» پرسید، پاسخ را بر اساس محتوای همین فایل بده.`
         : "";
 
+      // 🗓 مناسبت امروز: فقط روی اولین پیام هر روز (برای هر چت) یادآوری می‌شه، نه هر پیام.
+      // اگه پیام کاربر دربارهٔ مناسبت/تقویم باشه، کل تقویم سال هم (فقط همون یک پیام) اضافه می‌شه.
+      let eventBlock = "";
+      const todaysEvents = getTodaysEvents(now);
+      if (todaysEvents.length > 0 && env.CHAT_HISTORY) {
+        const { day: sDay, month: sMonth } = getShamsiTodayParts(now);
+        const todayKey = `${sMonth}-${sDay}`;
+        const lastShownKey = await env.CHAT_HISTORY.get(`eventday_${chatId}`);
+        if (lastShownKey !== todayKey) {
+          const todaysText = todaysEvents.map((e) => `${e.title}: ${e.description}`).join(" | ");
+          eventBlock += `\n\n[مناسبت امروز] ${todaysText}\nاین مناسبت رو در ابتدای پاسخت به‌طور طبیعی و کوتاه (یکی-دو جمله) به کاربر یادآوری کن، بعد به سؤال اصلی‌اش برس.`;
+          await env.CHAT_HISTORY.put(`eventday_${chatId}`, todayKey, { expirationTtl: 48 * 60 * 60 });
+        }
+      }
+      if (textAsksAboutCalendar(text)) {
+        eventBlock += `\n\n[تقویم کامل مناسبت‌های ملی/باستانی/فرهنگی ایران — برای پاسخ به سؤال کاربر دربارهٔ مناسبت‌ها/تقویم استفاده کن]\n${buildFullCalendarText()}`;
+      }
+
       // ساخت پرامپت سیستم پویا و تزریق ساعت زنده ایران + اطلاعات وب
       const dynamicSystemPrompt = `تو یک دستیار هوشمند بسیار صمیمی، دانا و متصل به اینترنت زنده هستی.
 پاسخ کاربران را کاملاً به زبان فارسی روان، جذاب و شیک بده.
@@ -1041,6 +1130,7 @@ ${webResults}
 \"\"\"
 
 ${docBlock}
+${eventBlock}
 
 وظیفه تو: با استفاده از اطلاعات زنده بالا و زمان دقیق ایران، پاسخ کاربر را بنویس.`;
 
