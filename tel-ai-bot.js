@@ -1013,6 +1013,8 @@ if (forceWebSearch && !isFileMessage) {
       const docBlock = activeDoc
         ? `\n\n[فایل پیوست‌شدهٔ کاربر: ${activeDoc.name}]\n\"\"\"\n${activeDoc.content}\n\"\"\"\nهر وقت کاربر دربارهٔ «فایل»، «این متن» یا «این سند» پرسید، پاسخ را بر اساس محتوای همین فایل بده.`
         : "";
+import calendarData from './calendar.json';
+const calendarJSON = JSON.stringify(calendarData);
 
 // ساخت پرامپت سیستم پویا و تزریق ساعت زنده ایران + اطلاعات وب
 const dynamicSystemPrompt = `تو یک دستیار هوشمند بسیار صمیمی، دانا و متصل به اینترنت زنده هستی.
