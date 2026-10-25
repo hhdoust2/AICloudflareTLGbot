@@ -393,6 +393,12 @@ const PDF_MAX_BYTES = 15 * 1024 * 1024; // حداکثر حجم فایل PDF (ت�
 const VOICE_MAX_DURATION_SECONDS = 10 * 60; // ۱۰ دقیقه — سقف امن برای یک درخواست Whisper
 const VOICE_MAX_BYTES = 20 * 1024 * 1024;   // سقف حجمی تلگرام برای دانلود فایل توسط ربات‌ها
 
+// عدد انگلیسی رو به رقم فارسی تبدیل می‌کنه (۰۱۲۳۴۵۶۷۸۹)
+function toPersianDigits(n) {
+  return String(n).replace(/[0-9]/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[d]);
+}
+__name(toPersianDigits, "toPersianDigits");
+
 // روز و ماه شمسی «امروز» (به وقت تهران) به‌صورت عدد انگلیسی، با Intl — چیزی نصب/دانلود نمی‌شه
 function getShamsiTodayParts(now) {
   const parts = new Intl.DateTimeFormat('fa-IR-u-ca-persian-nu-latn', {
@@ -404,6 +410,19 @@ function getShamsiTodayParts(now) {
   };
 }
 __name(getShamsiTodayParts, "getShamsiTodayParts");
+
+// تاریخ امروز (وقت تهران) به‌صورت یه متن آماده برای نمایش — با سال شاهنشاهی (سال شمسی + ۱۱۸۰)
+// به‌جای سال معمول هجری‌شمسی، دقیقاً مثل همون قاعده‌ای که خود مدل هوش مصنوعی برای تبدیل سال استفاده می‌کنه.
+function formatShahanshahiDateLabel(now) {
+  const parts = new Intl.DateTimeFormat('fa-IR-u-ca-persian-nu-latn', {
+    timeZone: 'Asia/Tehran', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+  }).formatToParts(now);
+  const get = (type) => parts.find((p) => p.type === type)?.value;
+  const shamsiYear = Number(get('year'));
+  const shahanshahiYear = shamsiYear + 1180;
+  return `${get('weekday')}، ${toPersianDigits(get('day'))} ${get('month')} ${toPersianDigits(shahanshahiYear)}`;
+}
+__name(formatShahanshahiDateLabel, "formatShahanshahiDateLabel");
 
 // مناسبت‌های «امروز» (فقط اونایی که توی فایل تاریخ ثابت دارن)
 function getTodaysEvents(now) {
@@ -983,9 +1002,7 @@ if (searchMatch) {
       if (text === "/event" || text === "/events") {
         const nowForEvent = new Date();
         const todays = getTodaysEvents(nowForEvent);
-        const dateLabel = nowForEvent.toLocaleDateString('fa-IR', {
-          timeZone: 'Asia/Tehran', calendar: 'persian', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-        });
+        const dateLabel = formatShahanshahiDateLabel(nowForEvent);
         const body = todays.length
           ? todays.map((e) => `🎉 <b>${escapeHtml(e.title)}</b>\n${escapeHtml(e.description)}`).join("\n\n")
           : "امروز مناسبت ملی/باستانی/فرهنگی خاصی ثبت نشده.";
